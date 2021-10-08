@@ -3,7 +3,7 @@
 # (Note that this is a multi-phase Dockerfile)
 # To build run `docker build --rm -t tebedwel/snort3-alpine:latest`
 #
-FROM alpine:3.8 as builder
+FROM alpine:latest as builder
 
 ENV PREFIX_DIR=/usr/local
 ENV HOME=/root
@@ -26,6 +26,7 @@ RUN apk add --no-cache \
     lcov@testing \
     cppcheck \
     cpputest \
+    cpputest-static \
     autoconf \
     automake \
     libtool \
@@ -38,7 +39,8 @@ RUN apk add --no-cache \
     zlib-dev \
     pcre-dev \
     libuuid \
-    xz-dev
+    xz-dev \
+    flex-dev
 
 # One of the quirks of alpine is that unistd.h is in /usr/include. Lots of
 # software looks for it in /usr/include/linux or /usr/include/sys.
@@ -73,6 +75,7 @@ WORKDIR $HOME
 RUN git clone https://github.com/snort3/snort3.git
 
 WORKDIR $HOME/snort3
+RUN git checkout tags/3.1.14.0
 RUN ./configure_cmake.sh \
     --prefix=${PREFIX_DIR} \
     --enable-unit-tests \
@@ -87,7 +90,7 @@ RUN make check && \
 #
 # RUNTIME CONTAINER
 #
-FROM alpine:3.8
+FROM alpine:latest
 
 ENV PREFIX_DIR=/usr/local/
 WORKDIR ${PREFIX_DIR}
@@ -108,12 +111,13 @@ RUN apk add --no-cache  \
     libstdc++ \
     libuuid \
     zlib \
+    libressl3.3-libcrypto \
     xz
 
 # Copy the build artifacts from the build container to the runtime file system
 COPY --from=builder ${PREFIX_DIR}/etc/ ${PREFIX_DIR}/etc/
 COPY --from=builder ${PREFIX_DIR}/lib/ ${PREFIX_DIR}/lib/
-COPY --from=builder ${PREFIX_DIR}/lib64/ ${PREFIX_DIR}/lib64/
+#COPY --from=builder ${PREFIX_DIR}/lib64/ ${PREFIX_DIR}/lib64/
 COPY --from=builder ${PREFIX_DIR}/bin/ ${PREFIX_DIR}/bin/
 
 WORKDIR /
